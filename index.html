@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseCount - Modern Interactive Counter</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom bounce/bump keyframes */
+    @keyframes bump-up {
+      0% { transform: scale(1) translateY(0); }
+      40% { transform: scale(1.08) translateY(-4px); }
+      100% { transform: scale(1) translateY(0); }
+    }
+    @keyframes bump-down {
+      0% { transform: scale(1) translateY(0); }
+      40% { transform: scale(0.94) translateY(4px); }
+      100% { transform: scale(1) translateY(0); }
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .animate-bump-up {
+      animation: bump-up 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .animate-bump-down {
+      animation: bump-down 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .pulse-ambient {
+      animation: pulse-ring 4s ease-in-out infinite;
+    }
+
+    /* Hide number input spinners */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    /* Custom smooth scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.3);
+      border-radius: 9999px;
+    }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(75, 85, 99, 0.4);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300 select-none antialiased">
+
+  <header class="w-full max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+        <i class="fa-solid fa-arrow-up-9-1 text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+          PulseCount
+        </h1>
+        <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Precision Modern Counter</p>
+      </div>
+    </div>
+
+    <!-- Quick action buttons in header -->
+    <div class="flex items-center gap-2">
+      <!-- Sound toggle button -->
+      <button id="soundToggleBtn" aria-label="Toggle Sound" class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm transition">
+        <i id="soundIcon" class="fa-solid fa-volume-high text-sm"></i>
+      </button>
+
+      <!-- Keyboard shortcuts dialog toggle -->
+      <button id="shortcutsBtn" aria-label="View Shortcuts" class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm transition">
+        <i class="fa-solid fa-keyboard text-sm"></i>
+      </button>
+
+      <!-- Dark/Light Theme toggle button -->
+      <button id="themeToggleBtn" aria-label="Toggle Theme" class="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm transition">
+        <i id="themeIcon" class="fa-regular fa-moon text-sm"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full max-w-4xl mx-auto px-4 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- Left / Center Column: Primary Counter card -->
+    <section class="lg:col-span-8 flex flex-col items-center">
+      <div class="w-full relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col items-center overflow-hidden">
+        
+        <!-- Ambient background radial glow -->
+        <div class="absolute -top-24 -left-24 w-64 h-64 bg-indigo-500/10 dark:bg-indigo-500/15 rounded-full blur-3xl pointer-events-none pulse-ambient"></div>
+        <div class="absolute -bottom-24 -right-24 w-64 h-64 bg-violet-500/10 dark:bg-violet-500/15 rounded-full blur-3xl pointer-events-none pulse-ambient" style="animation-delay: 2s;"></div>
+
+        <!-- Target Milestone / Goal Pill Banner -->
+        <div class="w-full flex items-center justify-between mb-4 z-10 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded-full font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <span id="activityDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Live Counter
+            </span>
+            <span id="targetStatusPill" class="hidden px-2.5 py-1 rounded-full font-medium bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60">
+              Target: <strong id="targetDisplayVal">100</strong>
+            </span>
+          </div>
+
+          <!-- Quick direct edit button -->
+          <button id="directEditBtn" class="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1 text-xs font-medium py-1 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+            <i class="fa-solid fa-pen text-[10px]"></i>
+            Edit direct
+          </button>
+        </div>
+
+        <div class="relative my-6 sm:my-8 flex flex-col items-center justify-center z-10 w-full">
+          <!-- Main Display Number -->
+          <div id="counterValueDisplay" 
+               tabindex="0"
+               title="Click or press Enter to edit number directly"
+               class="font-mono text-7xl sm:text-9xl font-bold tracking-tight text-slate-900 dark:text-white cursor-pointer select-none transition-transform duration-150 inline-block focus:outline-none focus:ring-4 focus:ring-indigo-500/20 rounded-2xl px-4 py-1">
+            0
+          </div>
+
+          <!-- Hidden Input for In-place Direct Editing -->
+          <input type="number" 
+                 id="counterDirectInput" 
+                 class="hidden font-mono text-7xl sm:text-9xl font-bold tracking-tight text-center w-full max-w-sm bg-transparent border-b-2 border-indigo-600 dark:border-indigo-400 text-slate-900 dark:text-white focus:outline-none"
+                 value="0" />
+
+          <!-- Target Progress Bar (Visible if target is configured) -->
+          <div id="targetProgressContainer" class="w-full max-w-xs mt-3 hidden flex-col items-center gap-1">
+            <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+              <div id="targetProgressBar" class="bg-gradient-to-r from-indigo-500 to-violet-500 h-full transition-all duration-300" style="width: 0%;"></div>
+            </div>
+            <span id="targetPercentLabel" class="text-[11px] text-slate-400 font-medium">0% to goal</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center gap-4 sm:gap-6 z-10 w-full max-w-sm mt-2">
+          <!-- Decrement Button -->
+          <button id="decrementBtn" 
+                  aria-label="Decrement"
+                  class="group flex-1 flex flex-col items-center justify-center py-4 px-3 sm:py-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-md hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 active:scale-95 transition-all duration-150">
+            <i class="fa-solid fa-minus text-2xl text-slate-700 dark:text-slate-200 group-hover:text-rose-500 transition-colors"></i>
+            <span class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1" id="stepSubLabel">-1</span>
+          </button>
+
+          <!-- Big Increment Button -->
+          <button id="incrementBtn" 
+                  aria-label="Increment"
+                  class="group flex-[1.4] flex flex-col items-center justify-center py-4 px-4 sm:py-5 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:from-indigo-500 hover:to-violet-500 active:scale-95 transition-all duration-150">
+            <i class="fa-solid fa-plus text-3xl text-white"></i>
+            <span class="text-xs font-semibold text-indigo-100/90 mt-1" id="stepAddLabel">+1</span>
+          </button>
+
+          <!-- Reset Button -->
+          <button id="resetBtn" 
+                  aria-label="Reset counter"
+                  class="group flex-1 flex flex-col items-center justify-center py-4 px-3 sm:py-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-md hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 active:scale-95 transition-all duration-150">
+            <i class="fa-solid fa-rotate-left text-2xl text-slate-600 dark:text-slate-300 group-hover:rotate-[-45deg] group-hover:text-amber-500 transition-all"></i>
+            <span class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1">Reset</span>
+          </button>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800/80 w-full z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Step Increment</span>
+          
+          <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl">
+            <button data-step="1" class="step-preset px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm">1</button>
+            <button data-step="5" class="step-preset px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 transition">5</button>
+            <button data-step="10" class="step-preset px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 transition">10</button>
+            <button data-step="50" class="step-preset px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 transition">50</button>
+            
+            <!-- Custom Step Input Container -->
+            <div class="flex items-center pl-1 border-l border-slate-200 dark:border-slate-700">
+              <span class="text-xs text-slate-400 px-1 font-mono">Custom:</span>
+              <input type="number" id="customStepInput" min="1" max="9999" value="1" 
+                     class="w-14 text-center text-xs py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick targets and limits card -->
+      <div class="w-full mt-4 bg-white/60 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-bullseye text-indigo-500"></i>
+          <span>Target Goal:</span>
+          <input type="number" id="targetInput" placeholder="None" class="w-20 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono">
+          <button id="setTargetBtn" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 font-medium transition">Set</button>
+          <button id="clearTargetBtn" class="px-2 py-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">Clear</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">Total clicks today:</span>
+          <span id="clickTotalCount" class="font-mono font-bold text-slate-700 dark:text-slate-200">0</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="lg:col-span-4 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-lg shadow-slate-200/40 dark:shadow-none flex flex-col h-[460px]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-indigo-500 text-sm"></i>
+          <h2 class="text-sm font-bold text-slate-800 dark:text-slate-200 tracking-tight">Activity Log</h2>
+        </div>
+        <button id="clearHistoryBtn" title="Clear log" class="text-xs text-slate-400 hover:text-rose-500 transition flex items-center gap-1">
+          <i class="fa-regular fa-trash-can text-xs"></i>
+          <span>Clear</span>
+        </button>
+      </div>
+
+      <!-- History List -->
+      <div id="historyList" class="flex-1 overflow-y-auto custom-scrollbar my-2 space-y-2 pr-1">
+        <!-- Empty placeholder shown by default -->
+        <div id="emptyHistoryNotice" class="h-full flex flex-col items-center justify-center text-center text-slate-400 dark:text-slate-500 p-4">
+          <i class="fa-solid fa-list-check text-2xl mb-2 opacity-30"></i>
+          <p class="text-xs">No activity logged yet.<br>Click + or - to start recording.</p>
+        </div>
+      </div>
+
+      <!-- Footer action: Copy count or export -->
+      <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+        <button id="copyCountBtn" class="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition">
+          <i class="fa-regular fa-copy"></i>
+          <span>Copy Value</span>
+        </button>
+        <span id="copyFeedback" class="text-emerald-500 text-[11px] font-medium hidden">Copied!</span>
+        <button id="saveTallyBtn" class="flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-medium transition">
+          <i class="fa-regular fa-bookmark"></i>
+          <span>Bookmark</span>
+        </button>
+      </div>
+    </aside>
+
+  </main>
+
+  <div id="shortcutsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden px-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-keyboard text-indigo-500"></i>
+          Keyboard Shortcuts
+        </h3>
+        <button id="closeShortcutsBtn" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60">
+          <span>Increment (+)</span>
+          <kbd class="px-2 py-1 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-mono shadow-sm">▲ Arrow Up / Space</kbd>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60">
+          <span>Decrement (-)</span>
+          <kbd class="px-2 py-1 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-mono shadow-sm">▼ Arrow Down</kbd>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60">
+          <span>Reset Counter</span>
+          <kbd class="px-2 py-1 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-mono shadow-sm">R</kbd>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60">
+          <span>Toggle Sound</span>
+          <kbd class="px-2 py-1 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-mono shadow-sm">M</kbd>
+        </div>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-4 text-center">Press Esc to close</p>
+    </div>
+  </div>
+
+  <script>
+    // State storage
+    const state = {
+      count: 0,
+      step: 1,
+      target: null,
+      totalClicks: 0,
+      soundEnabled: true,
+      darkMode: false,
+      history: []
+    };
+
+    // DOM Elements
+    const counterValueDisplay = document.getElementById('counterValueDisplay');
+    const counterDirectInput = document.getElementById('counterDirectInput');
+    const incrementBtn = document.getElementById('incrementBtn');
+    const decrementBtn = document.getElementById('decrementBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const stepAddLabel = document.getElementById('stepAddLabel');
+    const stepSubLabel = document.getElementById('stepSubLabel');
+    const customStepInput = document.getElementById('customStepInput');
+    const stepPresets = document.querySelectorAll('.step-preset');
+    const targetInput = document.getElementById('targetInput');
+    const setTargetBtn = document.getElementById('setTargetBtn');
+    const clearTargetBtn = document.getElementById('clearTargetBtn');
+    const targetStatusPill = document.getElementById('targetStatusPill');
+    const targetDisplayVal = document.getElementById('targetDisplayVal');
+    const targetProgressContainer = document.getElementById('targetProgressContainer');
+    const targetProgressBar = document.getElementById('targetProgressBar');
+    const targetPercentLabel = document.getElementById('targetPercentLabel');
+    const historyList = document.getElementById('historyList');
+    const emptyHistoryNotice = document.getElementById('emptyHistoryNotice');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const clickTotalCount = document.getElementById('clickTotalCount');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundIcon = document.getElementById('soundIcon');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const copyCountBtn = document.getElementById('copyCountBtn');
+    const copyFeedback = document.getElementById('copyFeedback');
+    const saveTallyBtn = document.getElementById('saveTallyBtn');
+    const directEditBtn = document.getElementById('directEditBtn');
+    const shortcutsBtn = document.getElementById('shortcutsBtn');
+    const shortcutsModal = document.getElementById('shortcutsModal');
+    const closeShortcutsBtn = document.getElementById('closeShortcutsBtn');
+
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // Modern synthetic click/tick sound
+    function playClickSound(freq = 520, type = 'sine', duration = 0.04) {
+      if (!state.soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        // Quick pitch drop for tactile feel
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.5, ctx.currentTime + duration);
+
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (err) {
+        console.warn('Audio play error:', err);
+      }
+    }
+
+    // Musical chime for reset and milestone celebration
+    function playChimeSound(success = false) {
+      if (!state.soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const notes = success ? [523.25, 659.25, 783.99, 1046.50] : [440, 330];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+
+          gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.3);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(ctx.currentTime + idx * 0.08);
+          osc.stop(ctx.currentTime + idx * 0.08 + 0.35);
+        });
+      } catch (err) {
+        console.warn('Audio play error:', err);
+      }
+    }
+
+    function renderCounter(animDirection = null) {
+      counterValueDisplay.textContent = state.count.toLocaleString();
+      counterDirectInput.value = state.count;
+      clickTotalCount.textContent = state.totalClicks.toLocaleString();
+
+      // Trigger tactile bounce animation
+      counterValueDisplay.classList.remove('animate-bump-up', 'animate-bump-down');
+      void counterValueDisplay.offsetWidth; // Trigger reflow
+      if (animDirection === 'up') {
+        counterValueDisplay.classList.add('animate-bump-up');
+      } else if (animDirection === 'down') {
+        counterValueDisplay.classList.add('animate-bump-down');
+      }
+
+      // Update Target Progress
+      if (state.target !== null && state.target > 0) {
+        targetProgressContainer.classList.remove('hidden');
+        targetProgressContainer.classList.add('flex');
+        const pct = Math.min(Math.max((state.count / state.target) * 100, 0), 100);
+        targetProgressBar.style.width = pct + '%';
+        targetPercentLabel.textContent = `${Math.round(pct)}% of goal (${state.count}/${state.target})`;
+
+        if (state.count >= state.target) {
+          targetProgressBar.classList.add('bg-emerald-500');
+        } else {
+          targetProgressBar.classList.remove('bg-emerald-500');
+        }
+      } else {
+        targetProgressContainer.classList.add('hidden');
+        targetProgressContainer.classList.remove('flex');
+      }
+    }
+
+    function addHistoryItem(action, changeAmount, newCount) {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      state.history.unshift({
+        action,
+        changeAmount,
+        newCount,
+        timeStr
+      });
+
+      // Keep maximum 30 history items
+      if (state.history.length > 30) state.history.pop();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      if (state.history.length === 0) {
+        emptyHistoryNotice.classList.remove('hidden');
+        historyList.innerHTML = '';
+        historyList.appendChild(emptyHistoryNotice);
+        return;
+      }
+
+      emptyHistoryNotice.classList.add('hidden');
+      historyList.innerHTML = '';
+
+      state.history.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs transition";
+        
+        let badgeColor = "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300";
+        let icon = "fa-plus";
+
+        if (item.action === 'decrement') {
+          badgeColor = "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+          icon = "fa-minus";
+        } else if (item.action === 'reset') {
+          badgeColor = "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+          icon = "fa-rotate-left";
+        } else if (item.action === 'manual' || item.action === 'bookmark') {
+          badgeColor = "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200";
+          icon = "fa-pen";
+        }
+
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] ${badgeColor}">
+              <i class="fa-solid ${icon}"></i>
+            </span>
+            <span class="font-medium text-slate-700 dark:text-slate-200">${item.changeAmount}</span>
+          </div>
+          <div class="flex items-center gap-2 font-mono">
+            <span class="font-bold text-slate-900 dark:text-white">${item.newCount}</span>
+            <span class="text-[10px] text-slate-400 font-sans">${item.timeStr}</span>
+          </div>
+        `;
+        historyList.appendChild(row);
+      });
+    }
+
+    function doIncrement() {
+      state.count += state.step;
+      state.totalClicks++;
+      playClickSound(620, 'sine', 0.05);
+      renderCounter('up');
+      addHistoryItem('increment', `+${state.step}`, state.count);
+
+      // Milestone notification sound
+      if (state.target && state.count === state.target) {
+        playChimeSound(true);
+      }
+    }
+
+    function doDecrement() {
+      state.count -= state.step;
+      state.totalClicks++;
+      playClickSound(380, 'sine', 0.05);
+      renderCounter('down');
+      addHistoryItem('decrement', `-${state.step}`, state.count);
+    }
+
+    function doReset() {
+      if (state.count === 0) return;
+      state.count = 0;
+      playChimeSound(false);
+      renderCounter();
+      addHistoryItem('reset', 'Reset to 0', 0);
+    }
+
+    // Step setting handler
+    function setStep(newStep) {
+      state.step = Math.max(1, parseInt(newStep) || 1);
+      stepAddLabel.textContent = `+${state.step}`;
+      stepSubLabel.textContent = `-${state.step}`;
+      customStepInput.value = state.step;
+
+      stepPresets.forEach(btn => {
+        const val = parseInt(btn.getAttribute('data-step'));
+        if (val === state.step) {
+          btn.className = "step-preset px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm";
+        } else {
+          btn.className = "step-preset px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition";
+        }
+      });
+    }
+
+    // Direct inline edit handlers
+    function activateDirectEdit() {
+      counterValueDisplay.classList.add('hidden');
+      counterDirectInput.classList.remove('hidden');
+      counterDirectInput.value = state.count;
+      counterDirectInput.focus();
+      counterDirectInput.select();
+    }
+
+    function saveDirectEdit() {
+      const parsed = parseInt(counterDirectInput.value);
+      if (!isNaN(parsed) && parsed !== state.count) {
+        state.count = parsed;
+        addHistoryItem('manual', 'Manual set', state.count);
+      }
+      counterDirectInput.classList.add('hidden');
+      counterValueDisplay.classList.remove('hidden');
+      renderCounter();
+    }
+
+    incrementBtn.addEventListener('click', doIncrement);
+    decrementBtn.addEventListener('click', doDecrement);
+    resetBtn.addEventListener('click', doReset);
+
+    counterValueDisplay.addEventListener('click', activateDirectEdit);
+    directEditBtn.addEventListener('click', activateDirectEdit);
+
+    counterDirectInput.addEventListener('blur', saveDirectEdit);
+    counterDirectInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        saveDirectEdit();
+      } else if (e.key === 'Escape') {
+        counterDirectInput.classList.add('hidden');
+        counterValueDisplay.classList.remove('hidden');
+      }
+    });
+
+    // Step presets click
+    stepPresets.forEach(btn => {
+      btn.addEventListener('click', () => {
+        setStep(btn.getAttribute('data-step'));
+        playClickSound(480, 'triangle', 0.03);
+      });
+    });
+
+    customStepInput.addEventListener('change', () => {
+      setStep(customStepInput.value);
+    });
+
+    // Target goal management
+    setTargetBtn.addEventListener('click', () => {
+      const val = parseInt(targetInput.value);
+      if (!isNaN(val) && val > 0) {
+        state.target = val;
+        targetDisplayVal.textContent = val;
+        targetStatusPill.classList.remove('hidden');
+        targetStatusPill.classList.add('flex');
+        renderCounter();
+      }
+    });
+
+    clearTargetBtn.addEventListener('click', () => {
+      state.target = null;
+      targetInput.value = '';
+      targetStatusPill.classList.add('hidden');
+      targetProgressContainer.classList.add('hidden');
+      renderCounter();
+    });
+
+    // Clear history
+    clearHistoryBtn.addEventListener('click', () => {
+      state.history = [];
+      renderHistory();
+    });
+
+    // Bookmark current value
+    saveTallyBtn.addEventListener('click', () => {
+      addHistoryItem('bookmark', 'Bookmarked tally', state.count);
+      playClickSound(700, 'sine', 0.05);
+    });
+
+    // Copy to clipboard
+    copyCountBtn.addEventListener('click', () => {
+      const tempInput = document.createElement('input');
+      tempInput.value = state.count.toString();
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+
+      copyFeedback.classList.remove('hidden');
+      setTimeout(() => copyFeedback.classList.add('hidden'), 2000);
+    });
+
+    // Sound toggle
+    soundToggleBtn.addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      if (state.soundEnabled) {
+        soundIcon.className = "fa-solid fa-volume-high text-sm";
+        playClickSound(550, 'sine', 0.05);
+      } else {
+        soundIcon.className = "fa-solid fa-volume-xmark text-sm text-slate-400";
+      }
+    });
+
+    // Dark mode toggle
+    themeToggleBtn.addEventListener('click', () => {
+      state.darkMode = !state.darkMode;
+      if (state.darkMode) {
+        document.documentElement.classList.add('dark');
+        themeIcon.className = "fa-regular fa-sun text-sm text-amber-400";
+      } else {
+        document.documentElement.classList.remove('dark');
+        themeIcon.className = "fa-regular fa-moon text-sm";
+      }
+    });
+
+    // Check system color preference on load
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      state.darkMode = true;
+      document.documentElement.classList.add('dark');
+      themeIcon.className = "fa-regular fa-sun text-sm text-amber-400";
+    }
+
+    // Keyboard Shortcuts modal controls
+    shortcutsBtn.addEventListener('click', () => {
+      shortcutsModal.classList.remove('hidden');
+    });
+
+    closeShortcutsBtn.addEventListener('click', () => {
+      shortcutsModal.classList.add('hidden');
+    });
+
+    shortcutsModal.addEventListener('click', (e) => {
+      if (e.target === shortcutsModal) {
+        shortcutsModal.classList.add('hidden');
+      }
+    });
